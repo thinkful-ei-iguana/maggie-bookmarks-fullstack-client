@@ -10,6 +10,9 @@ const Required = () => (
 
 class EditBookmark extends Component {
   static propTypes = {
+    match: PropTypes.shape({
+      params: PropTypes.object,
+    }),
     history: PropTypes.shape({
       push: PropTypes.func,
     }).isRequired,
@@ -19,59 +22,78 @@ class EditBookmark extends Component {
 
   state = {
     error: null,
+    id: '',
     title: '',
     url: '',
     description: '',
-    rating: 1
+    rating: 1,
   };
 
   componentDidMount() {
-    console.log('happens when component has mounted')
-    if (this.context.bookmarks.length === 0) {
-      this.props.history.push('/');
-      return;
-    }
-    const bookmark = this.context.bookmarks.find(b => b.id === Number(this.props.match.params.bookmarkId))
-
-    this.setState({
-      title: bookmark.title,
-      url: bookmark.url,
-      description: bookmark.description,
-      rating: bookmark.rating
-    })
-  }
-
-  handleSubmit = e => {
-    e.preventDefault()
-    // get the form fields from the event
-    const { title, url, description, rating } = e.target
-    const bookmark = {
-      title: title.value,
-      url: url.value,
-      description: description.value,
-      rating: Number(rating.value),
-    }
-    this.setState({ error: null })
-    fetch(config.API_ENDPOINT, {
-      method: 'PATCH',
-      body: JSON.stringify(bookmark),
+    const { bookmarkId } = this.props.match.params
+    fetch(config.API_ENDPOINT + `/${bookmarkId}`, {
+      method: 'GET',
       headers: {
-        'content-type': 'application/json',
-        'authorization': `bearer ${config.API_KEY}`
+        'authorization': `Bearer ${config.API_KEY}`
       }
     })
       .then(res => {
-        if (!res.ok) {
+        if (!res.ok)
           return res.json().then(error => Promise.reject(error))
-        }
+
         return res.json()
       })
-      .then(data => {
-        title.value = ''
-        url.value = ''
-        description.value = ''
-        rating.value = ''
-        this.context.EditBookmark(data)
+      .then(responseData => {
+        this.setState({
+          id: responseData.id,
+          title: responseData.title,
+          url: responseData.url,
+          description: responseData.description,
+          rating: responseData.rating,
+        })
+      })
+      .catch(error => {
+        console.error(error)
+        this.setState({ error })
+      })
+  }
+
+  handleChangeTitle = e => {
+    this.setState({ title: e.target.value })
+  };
+
+  handleChangeUrl = e => {
+    this.setState({ url: e.target.value })
+  };
+
+  handleChangeDescription = e => {
+    this.setState({ description: e.target.value })
+  };
+
+  handleChangeRating = e => {
+    this.setState({ rating: e.target.value })
+  };
+
+  handleSubmit = e => {
+    e.preventDefault()
+    const { bookmarkId } = this.props.match.params
+    const { id, title, url, description, rating } = this.state
+    const newBookmark = { id, title, url, description, rating }
+    fetch(config.API_ENDPOINT + `/${bookmarkId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(newBookmark),
+      headers: {
+        'content-type': 'application/json',
+        'authorization': `Bearer ${config.API_KEY}`
+      },
+    })
+      .then(res => {
+        if (!res.ok)
+          return res.json().then(error => Promise.reject(error))
+      })
+      .then(() => {
+        this.resetFields(newBookmark)
+        this.context.editBookmark(newBookmark)
         this.props.history.push('/')
       })
       .catch(error => {
@@ -80,13 +102,22 @@ class EditBookmark extends Component {
       })
   }
 
+  resetFields = (newFields) => {
+    this.setState({
+      id: newFields.id || '',
+      title: newFields.title || '',
+      url: newFields.url || '',
+      description: newFields.description || '',
+      rating: newFields.rating || '',
+    })
+  }
+
   handleClickCancel = () => {
     this.props.history.push('/')
   };
 
   render() {
-    console.log(this.context)
-    const { error } = this.state
+    const { error, title, url, description, rating } = this.state
     return (
       <section className='EditBookmark'>
         <h2>Edit bookmark</h2>
@@ -97,6 +128,10 @@ class EditBookmark extends Component {
           <div className='EditBookmark__error' role='alert'>
             {error && <p>{error.message}</p>}
           </div>
+          <input
+            type='hidden'
+            name='id'
+          />
           <div>
             <label htmlFor='title'>
               Title
@@ -108,9 +143,9 @@ class EditBookmark extends Component {
               name='title'
               id='title'
               placeholder='Great website!'
-              value={this.state.title}
-              onChange={e => this.setState({ title: e.target.value })}
               required
+              value={title}
+              onChange={this.handleChangeTitle}
             />
           </div>
           <div>
@@ -124,9 +159,9 @@ class EditBookmark extends Component {
               name='url'
               id='url'
               placeholder='https://www.great-website.com/'
-              value={this.state.url}
-              onChange={e => this.setState({ title: e.target.value })}
               required
+              value={url}
+              onChange={this.handleChangeUrl}
             />
           </div>
           <div>
@@ -136,8 +171,8 @@ class EditBookmark extends Component {
             <textarea
               name='description'
               id='description'
-              value={this.state.description}
-              onChange={e => this.setState({ title: e.target.value })}
+              value={description}
+              onChange={this.handleChangeDescription}
             />
           </div>
           <div>
@@ -152,9 +187,9 @@ class EditBookmark extends Component {
               id='rating'
               min='1'
               max='5'
-              value={this.state.rating}
-              onChange={e => this.setState({ title: e.target.value })}
               required
+              value={rating}
+              onChange={this.handleChangeRating}
             />
           </div>
           <div className='EditBookmark__buttons'>

@@ -27,6 +27,14 @@ class App extends Component {
     })
   }
 
+  editBookmark = updatedBookmark => {
+    this.setState({
+      bookmarks: this.state.bookmarks.map(bookmark =>
+        (bookmark.id !== updatedBookmark.id) ? bookmark : updatedBookmark
+      )
+    })
+  }
+
   deleteBookmark = bookmarkId => {
     const newBookmarks = this.state.bookmarks.filter(bm =>
       bm.id !== bookmarkId
@@ -62,6 +70,7 @@ class App extends Component {
       bookmarks: this.state.bookmarks,
       addBookmark: this.addBookmark,
       deleteBookmark: this.deleteBookmark,
+      editBookmark: this.editBookmark
     }
     return (
       <main className='App'>
